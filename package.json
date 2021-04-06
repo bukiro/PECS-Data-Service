@@ -1,5 +1,5 @@
 {
-  "name": "patherpoint-mongodb-connector",
+  "name": "pecs-mongodb-connector",
   "version": "1.0.0",
   "description": "Database connector for P.E.C.S.",
   "main": "index.js",
