@@ -1,7 +1,7 @@
 {
   "name": "pecs-mongodb-connector",
   "version": "1.0.0",
-  "description": "Database connector for P.E.C.S.",
+  "description": "MongoDB Database connector for P.E.C.S.",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
