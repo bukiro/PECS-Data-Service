@@ -1,0 +1,9 @@
+{
+    "MongoDBConnectionURL": "",
+    "MongoDBDatabase": "",
+    "MongoDBCharacterCollection": "",
+    "HTTPPort": "",
+    "HTTPSPort": "",
+    "SSLCertificatePath": "",
+    "SSLPrivateKeyPath": ""
+}
