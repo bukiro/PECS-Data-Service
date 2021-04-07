@@ -77,15 +77,13 @@ if (MongoDBConnectionURL && MongoDBDatabase && MongoDBCharacterCollection) {
         try {
             var certificate = fs.readFileSync(SSLCertificatePath, 'utf8');
         } catch (err) {
-            throw err
-            console.log('SSL certificate not found.')
+            console.log('SSL certificate not found at ' + SSLCertificatePath)
             certificate = "";
         }
         try {
             var privateKey = fs.readFileSync(SSLPrivateKeyPath, 'utf8');
         } catch (err) {
-            throw err
-            console.log('SSL private key not found.')
+            console.log('SSL private key not found at ' + SSLPrivateKeyPath)
             privateKey = "";
         }
         if (certificate && privateKey) {

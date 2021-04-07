@@ -4,6 +4,7 @@
 /node_modules
 
 # private config
+/src/config.json
 /src/server.crt
 /src/server.key
 
