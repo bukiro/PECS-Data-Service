@@ -1,6 +1,6 @@
 {
     "MongoDBConnectionURL": "mongodb://user:password@host:port/?retryWrites=true&w=majority&useUnifiedTopology=true",
-    "MongoDBDatabase": "patherpoint",
+    "MongoDBDatabase": "pecs",
     "MongoDBCharacterCollection": "characters",
     "MongoDBMessagesCollection": "messages",
     "HTTPPort": "8080",
