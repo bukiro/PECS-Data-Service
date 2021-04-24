@@ -2,7 +2,6 @@
     "MongoDBConnectionURL": "",
     "MongoDBDatabase": "",
     "MongoDBCharacterCollection": "",
-    "MongoDBMessageCollection": "",
     "HTTPPort": "",
     "HTTPSPort": "",
     "SSLCertificatePath": "",
