@@ -1,0 +1,10 @@
+{
+    "MongoDBConnectionURL": "mongodb://user:password@host:port/?retryWrites=true&w=majority&useUnifiedTopology=true",
+    "MongoDBDatabase": "patherpoint",
+    "MongoDBCharacterCollection": "characters",
+    "MongoDBMessagesCollection": "messages",
+    "HTTPPort": "8080",
+    "HTTPSPort": "8443",
+    "SSLCertificatePath": "./src/server.crt",
+    "SSLPrivateKeyPath": "./src/server.key"
+}

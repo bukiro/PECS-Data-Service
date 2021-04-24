@@ -13,6 +13,7 @@ var HTTPSPort = config.HTTPSPort || 8443;
 var MongoDBConnectionURL = config.MongoDBConnectionURL || "";
 var MongoDBDatabase = config.MongoDBDatabase || "";
 var MongoDBCharacterCollection = config.MongoDBCharacterCollection || "";
+var MongoDBMessagesCollection = config.MongoDBMessagesCollection || "";
 var SSLCertificatePath = config.SSLCertificatePath || "";
 var SSLPrivateKeyPath = config.SSLPrivateKeyPath || "";
 
@@ -24,16 +25,17 @@ app.use(function (req, res, next) {
     next();
 });
 
-if (MongoDBConnectionURL && MongoDBDatabase && MongoDBCharacterCollection) {
+if (MongoDBConnectionURL && MongoDBDatabase && MongoDBCharacterCollection && MongoDBMessagesCollection) {
     mongodb.connect(MongoDBConnectionURL, function (err, client) {
         var db = client.db(MongoDBDatabase)
-        var collection = db.collection(MongoDBCharacterCollection);
+        var characters = db.collection(MongoDBCharacterCollection);
+        var messages = db.collection(MongoDBMessagesCollection);
 
         app.post('/save', bodyParser.json(), function (req, res) {
             var query = req.body;
             query._id = query.id;
 
-            collection.findOneAndReplace({ _id: query._id }, query, { upsert: true, returnNewDocument: true }, function (err, result) {
+            characters.findOneAndReplace({ _id: query._id }, query, { upsert: true, returnNewDocument: true }, function (err, result) {
                 if (err) throw err;
 
                 res.send(result);
@@ -41,7 +43,7 @@ if (MongoDBConnectionURL && MongoDBDatabase && MongoDBCharacterCollection) {
         })
 
         app.get('/list', cors(), function (req, res) {
-            collection.find().toArray(function (err, result) {
+            characters.find().toArray(function (err, result) {
                 if (err) throw err;
 
                 res.send(result)
@@ -50,7 +52,7 @@ if (MongoDBConnectionURL && MongoDBDatabase && MongoDBCharacterCollection) {
 
         app.get('/load/:query', cors(), function (req, res) {
             var query = req.params.query;
-            collection.findOne({ 'id': query }, function (err, result) {
+            characters.findOne({ 'id': query }, function (err, result) {
                 if (err) throw err;
 
                 res.send(result)
@@ -59,7 +61,35 @@ if (MongoDBConnectionURL && MongoDBDatabase && MongoDBCharacterCollection) {
 
         app.get('/delete/:query', cors(), function (req, res) {
             var query = req.params.query;
-            collection.findOneAndDelete({ 'id': query }, function (err, result) {
+            characters.findOneAndDelete({ 'id': query }, function (err, result) {
+                if (err) throw err;
+
+                res.send(result)
+            })
+        })
+
+        app.post('/saveMessages', bodyParser.json(), function (req, res) {
+            var query = req.body;
+
+            messages.insertMany(query, function (err, result) {
+                if (err) throw err;
+
+                res.send(result);
+            })
+        })
+
+        app.get('/loadMessages/:query', cors(), function (req, res) {
+            var query = req.params.query;
+            messages.find({ 'recipientId': query }).toArray(function (err, result) {
+                if (err) throw err;
+
+                res.send(result)
+            })
+        })
+
+        app.get('/deleteMessage/:query', cors(), function (req, res) {
+            var query = req.params.query;
+            messages.findOneAndDelete({ 'id': query }, function (err, result) {
                 if (err) throw err;
 
                 res.send(result)
@@ -117,6 +147,9 @@ if (MongoDBConnectionURL && MongoDBDatabase && MongoDBCharacterCollection) {
     }
     if (!MongoDBCharacterCollection) {
         console.log(' MongoDBCharacterCollection');
+    }
+    if (!MongoDBMessagesCollection) {
+        console.log(' MongoDBMessagesCollection');
     }
     console.log('Connector cannot be started.')
 }
