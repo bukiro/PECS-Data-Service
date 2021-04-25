@@ -96,6 +96,22 @@ if (MongoDBConnectionURL && MongoDBDatabase && MongoDBCharacterCollection && Mon
             })
         })
 
+        app.get('/time', cors(), function (req, res) {
+            var time = new Date().getTime();
+            res.send({time:time});
+        })
+
+        app.get('/cleanup', cors(), function (req, res) {
+            var tenMinutesOld = new Date();
+            tenMinutesOld.setMinutes(tenMinutesOld.getMinutes()-10);
+            
+            messages.deleteMany({ 'timeStamp': {$lt:tenMinutesOld.getTime()} }, function (err, result) {
+                if (err) throw err;
+
+                res.send(result)
+            })
+        })
+
     })
 
     var httpServer = http.createServer(app)
