@@ -43,7 +43,7 @@ if (MongoDBConnectionURL && MongoDBDatabase && MongoDBCharacterCollection && Mon
         //Returns a savegame by ID.
         app.get('/loadCharacter/:query', cors(), function (req, res) {
             var query = req.params.query;
-            
+
             characters.findOne({ 'id': query }, function (err, result) {
                 if (err) throw err;
 
@@ -125,7 +125,7 @@ if (MongoDBConnectionURL && MongoDBDatabase && MongoDBCharacterCollection && Mon
         })
 
         //Deletes all messages that are older than 10 minutes. The messages are timestamped with the above time to avoid issues arising from time differences.
-        app.get('/cleanup', cors(), function (req, res) {
+        app.get('/cleanupMessages', cors(), function (req, res) {
             var tenMinutesOld = new Date();
             tenMinutesOld.setMinutes(tenMinutesOld.getMinutes()-10);
             
