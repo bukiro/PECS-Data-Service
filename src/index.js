@@ -31,7 +31,28 @@ if (MongoDBConnectionURL && MongoDBDatabase && MongoDBCharacterCollection && Mon
         var characters = db.collection(MongoDBCharacterCollection);
         var messages = db.collection(MongoDBMessagesCollection);
 
-        app.post('/save', bodyParser.json(), function (req, res) {
+        //Returns all savegames.
+        app.get('/listCharacters', cors(), function (req, res) {
+            characters.find().toArray(function (err, result) {
+                if (err) throw err;
+
+                res.send(result)
+            })
+        })
+
+        //Returns a savegame by ID.
+        app.get('/loadCharacter/:query', cors(), function (req, res) {
+            var query = req.params.query;
+            
+            characters.findOne({ 'id': query }, function (err, result) {
+                if (err) throw err;
+
+                res.send(result)
+            })
+        })
+
+        //Inserts or overwrites a savegame identified by its MongoDB _id, which is set to its own id.
+        app.post('/saveCharacter', bodyParser.json(), function (req, res) {
             var query = req.body;
             query._id = query.id;
 
@@ -42,32 +63,35 @@ if (MongoDBConnectionURL && MongoDBDatabase && MongoDBCharacterCollection && Mon
             })
         })
 
-        app.get('/list', cors(), function (req, res) {
-            characters.find().toArray(function (err, result) {
+        //Deletes a savegame by ID.
+        app.post('/deleteCharacter', bodyParser.json(), function (req, res) {
+            var query = req.body;
+
+            characters.findOneAndDelete({ 'id': query.id }, function (err, result) {
                 if (err) throw err;
 
                 res.send(result)
             })
         })
 
-        app.get('/load/:query', cors(), function (req, res) {
+        //Returns the current time in order to timestamp new messages on the frontend.
+        app.get('/time', cors(), function (req, res) {
+            var time = new Date().getTime();
+            res.send({time:time});
+        })
+        
+        //Returns all messages addressed to this recipient.
+        app.get('/loadMessages/:query', cors(), function (req, res) {
             var query = req.params.query;
-            characters.findOne({ 'id': query }, function (err, result) {
+
+            messages.find({ 'recipientId': query }).toArray(function (err, result) {
                 if (err) throw err;
 
                 res.send(result)
             })
         })
 
-        app.get('/delete/:query', cors(), function (req, res) {
-            var query = req.params.query;
-            characters.findOneAndDelete({ 'id': query }, function (err, result) {
-                if (err) throw err;
-
-                res.send(result)
-            })
-        })
-
+        //Sends your messages to the database.
         app.post('/saveMessages', bodyParser.json(), function (req, res) {
             var query = req.body;
 
@@ -78,29 +102,29 @@ if (MongoDBConnectionURL && MongoDBDatabase && MongoDBCharacterCollection && Mon
             })
         })
 
-        app.get('/loadMessages/:query', cors(), function (req, res) {
-            var query = req.params.query;
-            messages.find({ 'recipientId': query }).toArray(function (err, result) {
+        //Deletes one message by id.
+        app.post('/deleteMessage', bodyParser.json(), function (req, res) {
+            var query = req.body;
+            
+            messages.findOneAndDelete({ 'id': query.id }, function (err, result) {
                 if (err) throw err;
 
                 res.send(result)
             })
         })
 
-        app.get('/deleteMessage/:query', cors(), function (req, res) {
-            var query = req.params.query;
-            messages.findOneAndDelete({ 'id': query }, function (err, result) {
+        //Deletes all messages addressed to this recipient that are/aren't turnChange messages.
+        app.post('/deleteMyMessages', bodyParser.json(), function (req, res) {
+            var query = req.body;
+
+            messages.deleteMany({ 'recipientId': query.recipientId, 'turnChange': query.turnChange }, function (err, result) {
                 if (err) throw err;
 
                 res.send(result)
             })
         })
 
-        app.get('/time', cors(), function (req, res) {
-            var time = new Date().getTime();
-            res.send({time:time});
-        })
-
+        //Deletes all messages that are older than 10 minutes. The messages are timestamped with the above time to avoid issues arising from time differences.
         app.get('/cleanup', cors(), function (req, res) {
             var tenMinutesOld = new Date();
             tenMinutesOld.setMinutes(tenMinutesOld.getMinutes()-10);
