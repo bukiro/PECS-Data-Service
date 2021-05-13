@@ -77,9 +77,9 @@ if (MongoDBConnectionURL && MongoDBDatabase && MongoDBCharacterCollection && Mon
         //Returns the current time in order to timestamp new messages on the frontend.
         app.get('/time', cors(), function (req, res) {
             var time = new Date().getTime();
-            res.send({time:time});
+            res.send({ time: time });
         })
-        
+
         //Returns all messages addressed to this recipient.
         app.get('/loadMessages/:query', cors(), function (req, res) {
             var query = req.params.query;
@@ -105,7 +105,7 @@ if (MongoDBConnectionURL && MongoDBDatabase && MongoDBCharacterCollection && Mon
         //Deletes one message by id.
         app.post('/deleteMessage', bodyParser.json(), function (req, res) {
             var query = req.body;
-            
+
             messages.findOneAndDelete({ 'id': query.id }, function (err, result) {
                 if (err) throw err;
 
@@ -127,9 +127,9 @@ if (MongoDBConnectionURL && MongoDBDatabase && MongoDBCharacterCollection && Mon
         //Deletes all messages that are older than 10 minutes. The messages are timestamped with the above time to avoid issues arising from time differences.
         app.get('/cleanupMessages', cors(), function (req, res) {
             var tenMinutesOld = new Date();
-            tenMinutesOld.setMinutes(tenMinutesOld.getMinutes()-10);
-            
-            messages.deleteMany({ 'timeStamp': {$lt:tenMinutesOld.getTime()} }, function (err, result) {
+            tenMinutesOld.setMinutes(tenMinutesOld.getMinutes() - 10);
+
+            messages.deleteMany({ 'timeStamp': { $lt: tenMinutesOld.getTime() } }, function (err, result) {
                 if (err) throw err;
 
                 res.send(result)
