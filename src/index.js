@@ -113,17 +113,6 @@ if (MongoDBConnectionURL && MongoDBDatabase && MongoDBCharacterCollection && Mon
             })
         })
 
-        //Deletes all messages addressed to this recipient that are/aren't turnChange messages.
-        app.post('/deleteMyMessages', bodyParser.json(), function (req, res) {
-            var query = req.body;
-
-            messages.deleteMany({ 'recipientId': query.recipientId, 'turnChange': query.turnChange }, function (err, result) {
-                if (err) throw err;
-
-                res.send(result)
-            })
-        })
-
         //Deletes all messages that are older than 10 minutes. The messages are timestamped with the above time to avoid issues arising from time differences.
         app.get('/cleanupMessages', cors(), function (req, res) {
             var tenMinutesOld = new Date();
