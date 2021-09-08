@@ -1,6 +1,6 @@
 var express = require('express');
 var cors = require('cors');
-var mongodb = require('mongodb');
+var { MongoClient } = require('mongodb');
 var bodyParser = require('body-parser');
 var http = require('http');
 var https = require('https');
@@ -31,7 +31,7 @@ fs.readFile(__dirname + '/config.json', 'utf8', function (err, data) {
     });
 
     if (MongoDBConnectionURL && MongoDBDatabase && MongoDBCharacterCollection && MongoDBMessagesCollection) {
-        mongodb.connect(MongoDBConnectionURL, function (err, client) {
+        MongoClient.connect(MongoDBConnectionURL, function (err, client) {
             var db = client.db(MongoDBDatabase)
             var characters = db.collection(MongoDBCharacterCollection);
             var messages = db.collection(MongoDBMessagesCollection);
