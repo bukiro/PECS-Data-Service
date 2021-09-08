@@ -6,8 +6,7 @@ var http = require('http');
 var https = require('https');
 var fs = require('fs');
 
-
-fs.readFile('./config.json', 'utf8', function (err, data) {
+fs.readFile(__dirname + '/config.json', 'utf8', function (err, data) {
     if (err) {
         console.log('config.json was not found or could not be opened: ')
         throw err;
