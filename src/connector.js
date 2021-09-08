@@ -6,7 +6,7 @@ var http = require('http');
 var https = require('https');
 var fs = require('fs');
 
-var logFile = __dirname + "/pecs.log";
+var logFile = __dirname + "/connector.log";
 function log(message, withDate = true, die = false) {
     date = new Date();
     var day = ("0" + date.getDate()).slice(-2);
