@@ -5,7 +5,9 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "publish-exe": "copy .\\src\\connector.js .\\publish\\ && cd publish && nexe connector.js && cd .."
+    "publish": "copy .\\src\\connector.js .\\publish\\ && copy .\\src\\config.json.example .\\publish\\",
+    "publish-win": "cd publish && nexe connector.js -t win-x64 && cd ..",
+    "publish-linux": "cd publish && nexe connector.js -t linux-x64 && cd .."
   },
   "author": {
     "name": "Arne Brandt"

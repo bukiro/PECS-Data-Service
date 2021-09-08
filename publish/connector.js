@@ -6,34 +6,13 @@ var http = require('http');
 var https = require('https');
 var fs = require('fs');
 
-var logFile = __dirname + "/pecs.log";
-function log(message, withDate = true, die = false) {
-    date = new Date();
-    var day = ("0" + date.getDate()).slice(-2);
-    var month = ("0" + (date.getMonth() + 1)).slice(-2);
-    var year = date.getFullYear();
-    var hours = date.getHours();
-    var minutes = date.getMinutes();
-    var seconds = date.getSeconds();
-    var dateStr = year + "-" + month + "-" + day + " " + hours + ":" + minutes + ":" + seconds;
-    var dateMessage = "\n" + message;
-    if (withDate) {
-        dateMessage = "\n" + dateStr + ":: " + message;
-    }
-    fs.appendFileSync(logFile, dateMessage);
-    console.log(message);
-    if (die) process.exit(1);
-}
-
-log('==================================================', false)
-
 fs.readFile(__dirname + '/config.json', 'utf8', function (err, data) {
     if (err) {
         console.log('config.json was not found or could not be opened: ')
-        log(err, true, true);
+        throw err;
     }
     var config = JSON.parse(data);
-
+    
     var HTTPPort = config.HTTPPort || 8080;
     var HTTPSPort = config.HTTPSPort || 8443;
     var MongoDBConnectionURL = config.MongoDBConnectionURL || "";
@@ -60,11 +39,8 @@ fs.readFile(__dirname + '/config.json', 'utf8', function (err, data) {
             //Returns all savegames.
             app.get('/listCharacters', cors(), function (req, res) {
                 characters.find().toArray(function (err, result) {
-                    if (err) {
-                        log(err);
-                        throw err;
-                    }
-                    
+                    if (err) throw err;
+
                     res.send(result)
                 })
             })
@@ -74,11 +50,8 @@ fs.readFile(__dirname + '/config.json', 'utf8', function (err, data) {
                 var query = req.params.query;
 
                 characters.findOne({ 'id': query }, function (err, result) {
-                    if (err) {
-                        log(err);
-                        throw err;
-                    }
-                    
+                    if (err) throw err;
+
                     res.send(result)
                 })
             })
@@ -89,11 +62,8 @@ fs.readFile(__dirname + '/config.json', 'utf8', function (err, data) {
                 query._id = query.id;
 
                 characters.findOneAndReplace({ _id: query._id }, query, { upsert: true, returnNewDocument: true }, function (err, result) {
-                    if (err) {
-                        log(err);
-                        throw err;
-                    }
-                    
+                    if (err) throw err;
+
                     res.send(result);
                 })
             })
@@ -103,11 +73,8 @@ fs.readFile(__dirname + '/config.json', 'utf8', function (err, data) {
                 var query = req.body;
 
                 characters.findOneAndDelete({ 'id': query.id }, function (err, result) {
-                    if (err) {
-                        log(err);
-                        throw err;
-                    }
-                    
+                    if (err) throw err;
+
                     res.send(result)
                 })
             })
@@ -123,11 +90,8 @@ fs.readFile(__dirname + '/config.json', 'utf8', function (err, data) {
                 var query = req.params.query;
 
                 messages.find({ 'recipientId': query }).toArray(function (err, result) {
-                    if (err) {
-                        log(err);
-                        throw err;
-                    }
-                    
+                    if (err) throw err;
+
                     res.send(result)
                 })
             })
@@ -137,11 +101,8 @@ fs.readFile(__dirname + '/config.json', 'utf8', function (err, data) {
                 var query = req.body;
 
                 messages.insertMany(query, function (err, result) {
-                    if (err) {
-                        log(err);
-                        throw err;
-                    }
-                    
+                    if (err) throw err;
+
                     res.send(result);
                 })
             })
@@ -151,11 +112,8 @@ fs.readFile(__dirname + '/config.json', 'utf8', function (err, data) {
                 var query = req.body;
 
                 messages.findOneAndDelete({ 'id': query.id }, function (err, result) {
-                    if (err) {
-                        log(err);
-                        throw err;
-                    }
-                    
+                    if (err) throw err;
+
                     res.send(result)
                 })
             })
@@ -166,11 +124,8 @@ fs.readFile(__dirname + '/config.json', 'utf8', function (err, data) {
                 tenMinutesOld.setMinutes(tenMinutesOld.getMinutes() - 10);
 
                 messages.deleteMany({ 'timeStamp': { $lt: tenMinutesOld.getTime() } }, function (err, result) {
-                    if (err) {
-                        log(err);
-                        throw err;
-                    }
-                    
+                    if (err) throw err;
+
                     res.send(result)
                 })
             })
@@ -179,58 +134,58 @@ fs.readFile(__dirname + '/config.json', 'utf8', function (err, data) {
 
         var httpServer = http.createServer(app)
         httpServer.listen(HTTPPort, () => {
-            log('HTTP connector listening on port ' + HTTPPort)
+            console.log('HTTP connector listening on port ' + HTTPPort)
         })
 
         if (SSLCertificatePath && SSLPrivateKeyPath) {
             try {
                 var certificate = fs.readFileSync(SSLCertificatePath, 'utf8');
             } catch (err) {
-                log('SSL certificate not found at ' + SSLCertificatePath)
+                console.log('SSL certificate not found at ' + SSLCertificatePath)
                 certificate = "";
             }
             try {
                 var privateKey = fs.readFileSync(SSLPrivateKeyPath, 'utf8');
             } catch (err) {
-                log('SSL private key not found at ' + SSLPrivateKeyPath)
+                console.log('SSL private key not found at ' + SSLPrivateKeyPath)
                 privateKey = "";
             }
             if (certificate && privateKey) {
                 var credentials = { key: privateKey, cert: certificate };
                 var httpsServer = https.createServer(credentials, app);
                 httpsServer.listen(HTTPSPort, () => {
-                    log('HTTPS connector listening on port ' + HTTPSPort)
+                    console.log('HTTPS connector listening on port ' + HTTPSPort)
                 })
             } else {
-                log('HTTPS connector was not started.')
+                console.log('HTTPS connector was not started.')
             }
 
         } else if (SSLCertificatePath || SSLPrivateKeyPath) {
-            log('SSL information missing from config.json: ')
+            console.log('SSL information missing from config.json: ')
             if (!SSLCertificatePath) {
-                log(' SSLCertificatePath');
+                console.log(' SSLCertificatePath');
             }
             if (!SSLPrivateKeyPath) {
-                log(' SSLPrivateKeyPath');
+                console.log(' SSLPrivateKeyPath');
             }
-            log('HTTPS connector was not started.')
+            console.log('HTTPS connector was not started.')
         }
 
     } else {
-        log('Database information missing from config.json: ')
+        console.log('Database information missing from config.json: ')
         if (!MongoDBConnectionURL) {
-            log(' MongoDBConnectionURL');
+            console.log(' MongoDBConnectionURL');
         }
         if (!MongoDBDatabase) {
-            log(' MongoDBDatabase');
+            console.log(' MongoDBDatabase');
         }
         if (!MongoDBCharacterCollection) {
-            log(' MongoDBCharacterCollection');
+            console.log(' MongoDBCharacterCollection');
         }
         if (!MongoDBMessagesCollection) {
-            log(' MongoDBMessagesCollection');
+            console.log(' MongoDBMessagesCollection');
         }
-        log('Connector cannot be started.')
+        console.log('Connector cannot be started.')
     }
 
 })

@@ -4,12 +4,17 @@
 /node_modules
 
 # private config
-/src/config.json
-/src/server.crt
-/src/server.key
+/src/*.json
+/src/*.crt
+/src/*.key
+/publish/config.json
+/publish/*.crt
+/publish/*.key
+/publish/*.log
 
 # work environment
 /start.ps1
 
 # production files
-publish
+/publish/connector.exe
+/publish/connector
