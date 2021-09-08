@@ -10,3 +10,6 @@
 
 # work environment
 /start.ps1
+
+# production files
+publish

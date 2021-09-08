@@ -1,12 +1,15 @@
 {
-  "name": "pecs-mongodb-connector",
-  "version": "1.0.0",
+  "name": "@bukiro/pecs-mongodb-connector",
+  "version": "1.0.1",
   "description": "MongoDB Database connector for P.E.C.S.",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "publish-exe": "copy .\\src\\connector.js .\\publish\\ && cd publish && nexe connector.js && cd .."
   },
-  "author": "Arne Brandt",
+  "author": {
+    "name": "Arne Brandt"
+  },
   "license": "ISC",
   "dependencies": {
     "body-parser": "^1.19.0",
@@ -17,5 +20,8 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/bukiro/pecs-mongodb-connector"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com/bukiro"
   }
 }
