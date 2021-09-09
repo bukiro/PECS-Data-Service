@@ -14,6 +14,7 @@
 
 # work environment
 /start.ps1
+/src/*.log
 
 # production files
 /publish/connector.exe
