@@ -1,6 +1,6 @@
 {
   "name": "@bukiro/pecs-mongodb-connector",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "MongoDB Database connector for P.E.C.S.",
   "main": "index.js",
   "scripts": {

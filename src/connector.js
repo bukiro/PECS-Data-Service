@@ -70,128 +70,145 @@ fs.readFile(__dirname + '/config.json', 'utf8', function (err, data) {
 
         if (MongoDBConnectionURL && MongoDBDatabase && MongoDBCharacterCollection && MongoDBMessagesCollection) {
             MongoClient.connect(MongoDBConnectionURL, function (err, client) {
-                var db = client.db(MongoDBDatabase)
-                var characters = db.collection(MongoDBCharacterCollection);
-                var messages = db.collection(MongoDBMessagesCollection);
+                if (err) {
+                    log("Failed to connect to the database! The connector will not run.");
+                    log(err, true, true, true);
+                } else {
+                    var db = client.db(MongoDBDatabase)
+                    var characters = db.collection(MongoDBCharacterCollection);
+                    var messages = db.collection(MongoDBMessagesCollection);
 
-                //Returns all savegames.
-                app.get('/listCharacters', cors(), function (req, res) {
-                    characters.find().toArray(function (err, result) {
-                        if (err) {
-                            log(err, true, true);
-                            res.status(500).send(err);
-                        } else {
-                            res.send(result)
-                        }
+                    [MongoDBCharacterCollection, MongoDBMessagesCollection].forEach(collection => {
+                        db.createCollection(collection, function (err, result) {
+                            if (err) {
+                                if (err.codeName != "NamespaceExists") {
+                                    log("The collection " + collection + " could not be created! The connector will not run.");
+                                    log(err, true, true, true);
+                                }
+                            } else {
+                                log("The collection " + collection + " was created on the database.");
+                            }
+                        });
                     })
-                })
 
-                //Returns a savegame by ID.
-                app.get('/loadCharacter/:query', cors(), function (req, res) {
-                    var query = req.params.query;
-
-                    characters.findOne({ 'id': query }, function (err, result) {
-                        if (err) {
-                            log(err, true, true);
-                            res.status(500).send(err);
-                        } else {
-                            res.send(result)
-                        }
+                    //Returns all savegames.
+                    app.get('/listCharacters', cors(), function (req, res) {
+                        characters.find().toArray(function (err, result) {
+                            if (err) {
+                                log(err, true, true);
+                                res.status(500).send(err);
+                            } else {
+                                res.send(result)
+                            }
+                        })
                     })
-                })
 
-                //Inserts or overwrites a savegame identified by its MongoDB _id, which is set to its own id.
-                app.post('/saveCharacter', bodyParser.json(), function (req, res) {
-                    var query = req.body;
-                    query._id = query.id;
+                    //Returns a savegame by ID.
+                    app.get('/loadCharacter/:query', cors(), function (req, res) {
+                        var query = req.params.query;
 
-                    characters.findOneAndReplace({ _id: query._id }, query, { upsert: true, returnNewDocument: true }, function (err, result) {
-                        if (err) {
-                            log(err, true, true);
-                            res.status(500).send(err);
-                        } else {
-                            res.send(result)
-                        }
+                        characters.findOne({ 'id': query }, function (err, result) {
+                            if (err) {
+                                log(err, true, true);
+                                res.status(500).send(err);
+                            } else {
+                                res.send(result)
+                            }
+                        })
                     })
-                })
 
-                //Deletes a savegame by ID.
-                app.post('/deleteCharacter', bodyParser.json(), function (req, res) {
-                    var query = req.body;
+                    //Inserts or overwrites a savegame identified by its MongoDB _id, which is set to its own id.
+                    app.post('/saveCharacter', bodyParser.json(), function (req, res) {
+                        var query = req.body;
+                        query._id = query.id;
 
-                    characters.findOneAndDelete({ 'id': query.id }, function (err, result) {
-                        if (err) {
-                            log(err, true, true);
-                            res.status(500).send(err);
-                        } else {
-                            res.send(result)
-                        }
+                        characters.findOneAndReplace({ _id: query._id }, query, { upsert: true, returnNewDocument: true }, function (err, result) {
+                            if (err) {
+                                log(err, true, true);
+                                res.status(500).send(err);
+                            } else {
+                                res.send(result)
+                            }
+                        })
                     })
-                })
 
-                //Returns the current time in order to timestamp new messages on the frontend.
-                app.get('/time', cors(), function (req, res) {
-                    var time = new Date().getTime();
-                    res.send({ time: time });
-                })
+                    //Deletes a savegame by ID.
+                    app.post('/deleteCharacter', bodyParser.json(), function (req, res) {
+                        var query = req.body;
 
-                //Returns all messages addressed to this recipient.
-                app.get('/loadMessages/:query', cors(), function (req, res) {
-                    var query = req.params.query;
-
-                    messages.find({ 'recipientId': query }).toArray(function (err, result) {
-                        if (err) {
-                            log(err, true, true);
-                            res.status(500).send(err);
-                        } else {
-                            res.send(result)
-                        }
+                        characters.findOneAndDelete({ 'id': query.id }, function (err, result) {
+                            if (err) {
+                                log(err, true, true);
+                                res.status(500).send(err);
+                            } else {
+                                res.send(result)
+                            }
+                        })
                     })
-                })
 
-                //Sends your messages to the database.
-                app.post('/saveMessages', bodyParser.json(), function (req, res) {
-                    var query = req.body;
-
-                    messages.insertMany(query, function (err, result) {
-                        if (err) {
-                            log(err, true, true);
-                            res.status(500).send(err);
-                        } else {
-                            res.send(result)
-                        }
+                    //Returns the current time in order to timestamp new messages on the frontend.
+                    app.get('/time', cors(), function (req, res) {
+                        var time = new Date().getTime();
+                        res.send({ time: time });
                     })
-                })
 
-                //Deletes one message by id.
-                app.post('/deleteMessage', bodyParser.json(), function (req, res) {
-                    var query = req.body;
+                    //Returns all messages addressed to this recipient.
+                    app.get('/loadMessages/:query', cors(), function (req, res) {
+                        var query = req.params.query;
 
-                    messages.findOneAndDelete({ 'id': query.id }, function (err, result) {
-                        if (err) {
-                            log(err, true, true);
-                            res.status(500).send(err);
-                        } else {
-                            res.send(result)
-                        }
+                        messages.find({ 'recipientId': query }).toArray(function (err, result) {
+                            if (err) {
+                                log(err, true, true);
+                                res.status(500).send(err);
+                            } else {
+                                res.send(result)
+                            }
+                        })
                     })
-                })
 
-                //Deletes all messages that are older than 10 minutes. The messages are timestamped with the above time to avoid issues arising from time differences.
-                app.get('/cleanupMessages', cors(), function (req, res) {
-                    var tenMinutesOld = new Date();
-                    tenMinutesOld.setMinutes(tenMinutesOld.getMinutes() - 10);
+                    //Sends your messages to the database.
+                    app.post('/saveMessages', bodyParser.json(), function (req, res) {
+                        var query = req.body;
 
-                    messages.deleteMany({ 'timeStamp': { $lt: tenMinutesOld.getTime() } }, function (err, result) {
-                        if (err) {
-                            log(err, true, true);
-                            res.status(500).send(err);
-                        } else {
-                            res.send(result)
-                        }
+                        messages.insertMany(query, function (err, result) {
+                            if (err) {
+                                log(err, true, true);
+                                res.status(500).send(err);
+                            } else {
+                                res.send(result)
+                            }
+                        })
                     })
-                })
 
+                    //Deletes one message by id.
+                    app.post('/deleteMessage', bodyParser.json(), function (req, res) {
+                        var query = req.body;
+
+                        messages.findOneAndDelete({ 'id': query.id }, function (err, result) {
+                            if (err) {
+                                log(err, true, true);
+                                res.status(500).send(err);
+                            } else {
+                                res.send(result)
+                            }
+                        })
+                    })
+
+                    //Deletes all messages that are older than 10 minutes. The messages are timestamped with the above time to avoid issues arising from time differences.
+                    app.get('/cleanupMessages', cors(), function (req, res) {
+                        var tenMinutesOld = new Date();
+                        tenMinutesOld.setMinutes(tenMinutesOld.getMinutes() - 10);
+
+                        messages.deleteMany({ 'timeStamp': { $lt: tenMinutesOld.getTime() } }, function (err, result) {
+                            if (err) {
+                                log(err, true, true);
+                                res.status(500).send(err);
+                            } else {
+                                res.send(result)
+                            }
+                        })
+                    })
+                }
             })
 
             async function startHTTP() {
