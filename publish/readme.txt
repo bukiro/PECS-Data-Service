@@ -8,6 +8,7 @@ Some steps are necessary to create a database connection:
 HTTPPort
 (optional, default 8080)
 The insecure port where the connector is going to run. Unless you are using HTTPS, you should enter http://<your-url-or-ip>:<HTTPPort> in dbConnectionURL property in the config file for PECS.
+
 HTTPSPort
 (optional, default 8443)
 The alternative SSL port to use for more security. If you are using HTTPS, the dbConnectionURL should be https://<your-url-or-ip>:<HTTPSPort> . If you are using HTTPS for PECS, you need to use HTTPS for the connector as well.
