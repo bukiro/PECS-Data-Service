@@ -5,7 +5,6 @@ var bodyParser = require('body-parser');
 var http = require('http');
 var https = require('https');
 var fs = require('fs');
-const e = require('express');
 
 var logFile = __dirname + "/connector.log";
 function log(message, withDate = true, error = false, die = false) {
@@ -68,10 +67,10 @@ fs.readFile(__dirname + '/config.json', 'utf8', function (err, data) {
             next();
         });
 
-        if (MongoDBConnectionURL && MongoDBDatabase && MongoDBCharacterCollection && MongoDBMessagesCollection) {
+        if (MongoDBConnectionURL && MongoDBDatabase) {
             MongoClient.connect(MongoDBConnectionURL, function (err, client) {
                 if (err) {
-                    log("Failed to connect to the database! The connector will not run.");
+                    log("Failed to connect to the database! The connector will not run: ");
                     log(err, true, true, true);
                 } else {
                     var db = client.db(MongoDBDatabase)
@@ -82,7 +81,7 @@ fs.readFile(__dirname + '/config.json', 'utf8', function (err, data) {
                         db.createCollection(collection, function (err, result) {
                             if (err) {
                                 if (err.codeName != "NamespaceExists") {
-                                    log("The collection " + collection + " could not be created! The connector will not run.");
+                                    log("The collection " + collection + " does not exist and could not be created. The connector will not run: ");
                                     log(err, true, true, true);
                                 }
                             } else {
@@ -270,7 +269,6 @@ fs.readFile(__dirname + '/config.json', 'utf8', function (err, data) {
                 } else {
                     log('HTTPS connector was not started.')
                 }
-
             } else if (SSLCertificatePath || SSLPrivateKeyPath) {
                 log('SSL information missing from config.json: ')
                 if (!SSLCertificatePath) {
@@ -281,7 +279,6 @@ fs.readFile(__dirname + '/config.json', 'utf8', function (err, data) {
                 }
                 log('HTTPS connector was not started.')
             }
-
         } else {
             log('Database information missing from config.json: ')
             if (!MongoDBConnectionURL) {
@@ -290,13 +287,7 @@ fs.readFile(__dirname + '/config.json', 'utf8', function (err, data) {
             if (!MongoDBDatabase) {
                 log(' MongoDBDatabase');
             }
-            if (!MongoDBCharacterCollection) {
-                log(' MongoDBCharacterCollection');
-            }
-            if (!MongoDBMessagesCollection) {
-                log(' MongoDBMessagesCollection');
-            }
-            log('Connector cannot be started.')
+            log('Connector cannot be started.', true, true, true)
         }
     }
 

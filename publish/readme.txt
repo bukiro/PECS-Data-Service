@@ -21,15 +21,17 @@ SSLPrivateKeyPath
 If you want to use HTTPS, your SSL certificate needs a private key. This is the path to the key. Password-protected private keys are not supported.
 
 MongoDBConnectionURL
-This is the connection URL for your MongoDB Database. Both MongoDB Atlas and MongoDB Compass can show you the exact url to use for your database. If the database requires an authenticated user for the connection, you must enter the user and password here. MongoDB Atlas always requires authenticated users.
+This is the connection URL for your MongoDB database server. Both MongoDB Atlas and MongoDB Compass can show you the exact url to use for your server. If the server requires an authenticated user for the connection, you must enter the user and password here. MongoDB Atlas always requires authenticated users.
 
 MongoDBDatabase
 The name of the MongoDB database that you will connect to.
 
 MongoDBCharacterCollection
+(optional, default characters)
 The name of the collection in the database where the character are stored.
 
 MongoDBMessagesCollection
+(optional, default messages)
 The name of the messages collection in the database.
 
 3. When the config file is finished, you can start the connetor by running the executable: On Windows, run connector.exe, and on Linux, run connector.
