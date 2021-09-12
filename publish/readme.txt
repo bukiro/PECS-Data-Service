@@ -28,11 +28,15 @@ MongoDBDatabase
 The name of the MongoDB database that you will connect to.
 
 MongoDBCharacterCollection
-(optional, default characters)
+(optional, default "characters")
 The name of the collection in the database where the character are stored.
 
 MongoDBMessagesCollection
-(optional, default messages)
+(optional, default "messages")
 The name of the messages collection in the database.
+
+ConvertMongoDBToLocal
+(optional, default false)
+ONLY if you have previously connected to a MongoDB and wish to switch to the local database, set this value to true and keep the MongoDB parameters. The next time you start the application, the characters stored in your MongoDB database will be converted to the local database. After that process has finished, you can remove the MongoDB parameters and this parameter from the config file and restart the application.
 
 3. When the config file is finished, you can start the connetor by running the executable: On Windows, run connector.exe, and on Linux, run connector.

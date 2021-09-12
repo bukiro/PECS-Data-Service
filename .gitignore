@@ -7,7 +7,6 @@
 /src/*.json
 /src/*.crt
 /src/*.key
-/publish/config.json
 /publish/*.crt
 /publish/*.key
 /publish/*.log
@@ -17,5 +16,5 @@
 /src/*.log
 
 # production files
-/publish/connector.exe
-/publish/connector
+/publish/service.exe
+/publish/service

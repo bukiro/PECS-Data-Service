@@ -5,6 +5,8 @@ var bodyParser = require('body-parser');
 var http = require('http');
 var https = require('https');
 var fs = require('fs');
+var { JsonDB } = require('node-json-db');
+var { Config } = require('node-json-db/dist/lib/JsonDBConfig');
 
 var logFile = __dirname + "/connector.log";
 function log(message, withDate = true, error = false, die = false) {
@@ -55,9 +57,13 @@ fs.readFile(__dirname + '/config.json', 'utf8', function (err, data) {
         var MongoDBConnectionURL = config.MongoDBConnectionURL || "";
         var MongoDBDatabase = config.MongoDBDatabase || "";
         var MongoDBCharacterCollection = config.MongoDBCharacterCollection || "characters";
-        var MongoDBMessagesCollection = config.MongoDBMessagesCollection || "messages";
         var SSLCertificatePath = config.SSLCertificatePath || "";
         var SSLPrivateKeyPath = config.SSLPrivateKeyPath || "";
+        var ConvertMongoDBToLocal = config.ConvertMongoDBToLocal || false;
+
+        var messageStore = [];
+
+        var isWin = process.platform === "win32";
 
         var app = express()
 
@@ -75,20 +81,37 @@ fs.readFile(__dirname + '/config.json', 'utf8', function (err, data) {
                 } else {
                     var db = client.db(MongoDBDatabase)
                     var characters = db.collection(MongoDBCharacterCollection);
-                    var messages = db.collection(MongoDBMessagesCollection);
 
-                    [MongoDBCharacterCollection, MongoDBMessagesCollection].forEach(collection => {
-                        db.createCollection(collection, function (err, result) {
-                            if (err) {
-                                if (err.codeName != "NamespaceExists") {
-                                    log("The collection " + collection + " does not exist and could not be created. The connector will not run: ");
-                                    log(err, true, true, true);
-                                }
-                            } else {
-                                log("The collection " + collection + " was created on the database.");
+                    db.createCollection(MongoDBCharacterCollection, function (err, result) {
+                        if (err) {
+                            if (err.codeName != "NamespaceExists") {
+                                log("The characters collection '" + MongoDBCharacterCollection + "' does not exist and could not be created. The connector will not run: ");
+                                log(err, true, true, true);
                             }
-                        });
-                    })
+                        } else {
+                            log("The characters collection '" + MongoDBCharacterCollection + "' was created on the database.");
+                        }
+                    });
+
+                    if (ConvertMongoDBToLocal) {
+                        log("Converting characters from MongoDB to local database.")
+                        if (isWin) {
+                            var localDB = new JsonDB(new Config(process.env.APPDATA + "/kironet/pecs/characters", true, true, '/'));
+                        } else {
+                            var localDB = new JsonDB(new Config(process.env.HOME + "/.kironet_pecs/characters", true, true, '/'));
+                        }
+                        characters.find().toArray(function (err, result) {
+                            if (err) {
+                                log("Unable to load characters from MongoDB: ")
+                                log(err, true, true);
+                            } else {
+                                result.forEach(char => {
+                                    localDB.push("/" + char.id, char);
+                                })
+                                log("All characters have been converted. MongoDB is still the connected database. Please remove the database parameters from the config file now and restart the application.", true, false, true);
+                            }
+                        })
+                    }
 
                     //Returns all savegames.
                     app.get('/listCharacters', cors(), function (req, res) {
@@ -144,72 +167,107 @@ fs.readFile(__dirname + '/config.json', 'utf8', function (err, data) {
                             }
                         })
                     })
+                }
+            })
+        } else if (MongoDBConnectionURL || MongoDBDatabase) {
+            log('Database information is configured but incomplete. The following information is missing from config.json: ')
+            if (!MongoDBConnectionURL) {
+                log(' MongoDBConnectionURL');
+            }
+            if (!MongoDBDatabase) {
+                log(' MongoDBDatabase');
+            }
+            log('Connector cannot be started.', true, true, true)
+        } else {
+            if (isWin) {
+                var db = new JsonDB(new Config(process.env.APPDATA + "/kironet/pecs/characters", true, true, '/'));
+            } else {
+                var db = new JsonDB(new Config(process.env.HOME + "/.kironet_pecs/characters", true, true, '/'));
+            }
 
-                    //Returns the current time in order to timestamp new messages on the frontend.
-                    app.get('/time', cors(), function (req, res) {
-                        var time = new Date().getTime();
-                        res.send({ time: time });
-                    })
-
-                    //Returns all messages addressed to this recipient.
-                    app.get('/loadMessages/:query', cors(), function (req, res) {
-                        var query = req.params.query;
-
-                        messages.find({ 'recipientId': query }).toArray(function (err, result) {
-                            if (err) {
-                                log(err, true, true);
-                                res.status(500).send(err);
-                            } else {
-                                res.send(result)
-                            }
-                        })
-                    })
-
-                    //Sends your messages to the database.
-                    app.post('/saveMessages', bodyParser.json(), function (req, res) {
-                        var query = req.body;
-
-                        messages.insertMany(query, function (err, result) {
-                            if (err) {
-                                log(err, true, true);
-                                res.status(500).send(err);
-                            } else {
-                                res.send(result)
-                            }
-                        })
-                    })
-
-                    //Deletes one message by id.
-                    app.post('/deleteMessage', bodyParser.json(), function (req, res) {
-                        var query = req.body;
-
-                        messages.findOneAndDelete({ 'id': query.id }, function (err, result) {
-                            if (err) {
-                                log(err, true, true);
-                                res.status(500).send(err);
-                            } else {
-                                res.send(result)
-                            }
-                        })
-                    })
-
-                    //Deletes all messages that are older than 10 minutes. The messages are timestamped with the above time to avoid issues arising from time differences.
-                    app.get('/cleanupMessages', cors(), function (req, res) {
-                        var tenMinutesOld = new Date();
-                        tenMinutesOld.setMinutes(tenMinutesOld.getMinutes() - 10);
-
-                        messages.deleteMany({ 'timeStamp': { $lt: tenMinutesOld.getTime() } }, function (err, result) {
-                            if (err) {
-                                log(err, true, true);
-                                res.status(500).send(err);
-                            } else {
-                                res.send(result)
-                            }
-                        })
-                    })
+            //Returns all savegames.
+            app.get('/listCharacters', cors(), function (req, res) {
+                var characterResults = db.getData("/");
+                if (Object.keys(characterResults).length) {
+                    result = Object.keys(characterResults).map(key => characterResults[key]);
+                    res.send(result);
+                } else {
+                    res.send([]);
                 }
             })
 
+            //Returns a savegame by ID.
+            app.get('/loadCharacter/:query', cors(), function (req, res) {
+                var query = req.params.query;
+                var result = db.getData("/" + query);
+                res.send(result);
+            })
+
+            //Inserts or overwrites a savegame identified by its MongoDB _id, which is set to its own id.
+            app.post('/saveCharacter', bodyParser.json(), function (req, res) {
+                var query = req.body;
+                query._id = query.id;
+
+                db.push("/" + query.id, query);
+                result = { result: { n: 1, ok: 1 } };
+                res.send(result);
+            })
+
+            //Deletes a savegame by ID.
+            app.post('/deleteCharacter', bodyParser.json(), function (req, res) {
+                var query = req.body;
+
+                db.delete("/" + query.id);
+                result = { result: { n: 1, ok: 1 } };
+                res.send(result);
+            })
+        }
+
+        //Returns the current time in order to timestamp new messages on the frontend.
+        app.get('/time', cors(), function (req, res) {
+            var time = new Date().getTime();
+            res.send({ time: time });
+        })
+
+        //Returns all messages addressed to this recipient.
+        app.get('/loadMessages/:query', cors(), function (req, res) {
+            var query = req.params.query;
+            var result = messageStore.filter(message => message.recipientId == query);
+            res.send(result)
+        })
+
+        //Sends your messages to the database.
+        app.post('/saveMessages', bodyParser.json(), function (req, res) {
+            var query = req.body;
+            messageStore.push(...query);
+            var result = { result: { ok: 1, n: query.length }, ops: query, insertedCount: query.length }
+            res.send(result);
+        })
+
+        //Deletes one message by id.
+        app.post('/deleteMessage', bodyParser.json(), function (req, res) {
+            var query = req.body;
+            var messageToDelete = messageStore.find(message => message.id == query.id);
+            if (messageToDelete) {
+                var result = { lastErrorObject: { n: 1 }, value: messageToDelete, ok: 1 }
+            } else {
+                var result = { lastErrorObject: { n: 0 }, value: null, ok: 1 }
+            }
+            messageStore = messageStore.filter(message => message.id != query.id);
+            res.send(result);
+        })
+
+        //Deletes all messages that are older than 10 minutes. The messages are timestamped with the above time to avoid issues arising from time differences.
+        app.get('/cleanupMessages', cors(), function (req, res) {
+            var tenMinutesOld = new Date();
+            tenMinutesOld.setMinutes(tenMinutesOld.getMinutes() - 10);
+            var messagesToDelete = messageStore.filter(message => message.timeStamp < tenMinutesOld.getTime());
+            var result = { result: { n: messagesToDelete.length, ok: 1 }, deletedCount: messagesToDelete.length };
+            messageStore = messageStore.filter(message => message.timeStamp >= tenMinutesOld.getTime());
+            res.send(result);
+        })
+
+        if (!(MongoDBConnectionURL && MongoDBDatabase && ConvertMongoDBToLocal)) {
             async function startHTTP() {
                 var httpServer = http.createServer(app);
                 try {
@@ -279,15 +337,6 @@ fs.readFile(__dirname + '/config.json', 'utf8', function (err, data) {
                 }
                 log('HTTPS connector was not started.')
             }
-        } else {
-            log('Database information missing from config.json: ')
-            if (!MongoDBConnectionURL) {
-                log(' MongoDBConnectionURL');
-            }
-            if (!MongoDBDatabase) {
-                log(' MongoDBDatabase');
-            }
-            log('Connector cannot be started.', true, true, true)
         }
     }
 

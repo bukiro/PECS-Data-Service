@@ -15,3 +15,9 @@ This log tracks only major changes.
 
 - The app is now available as a standalone executable.
 - The required database collections will be created automatically.
+
+## 1.0.3
+
+- Messages are now handled completely in the connector and don't use the database connection anymore.
+- The messages parameter is not used anymore. You can delete your MongoDB messages collection. All messages will disappear when you stop the connector.
+- The app now uses a local data file to store characters. The MongoDB connection remains an optional alternative.
