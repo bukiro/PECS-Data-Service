@@ -127,16 +127,20 @@ fs.readFile(__dirname + '/config.json', 'utf8', function (err, data) {
                     var db = client.db(MongoDBDatabase)
                     var characters = db.collection(MongoDBCharacterCollection);
 
-                    db.createCollection(MongoDBCharacterCollection, function (err, result) {
-                        if (err) {
-                            if (err.codeName != "NamespaceExists") {
-                                log("The characters collection '" + MongoDBCharacterCollection + "' does not exist and could not be created. The connector will not run: ");
-                                log(err, true, true, true);
-                            }
-                        } else {
-                            log("The characters collection '" + MongoDBCharacterCollection + "' was created on the database.");
+                    db.listCollections({ name: MongoDBCharacterCollection }).next(function (err, collinfo) {
+                        if (!collinfo) {
+                            db.createCollection(MongoDBCharacterCollection, function (err, result) {
+                                if (err) {
+                                    if (err.codeName != "NamespaceExists") {
+                                        log("The characters collection '" + MongoDBCharacterCollection + "' does not exist and could not be created. The connector will not run: ");
+                                        log(err, true, true, true);
+                                    }
+                                } else {
+                                    log("The characters collection '" + MongoDBCharacterCollection + "' was created on the database.");
+                                }
+                            });
                         }
-                    });
+                    })
 
                     if (ConvertMongoDBToLocal) {
                         log("Converting characters from MongoDB to local database.")
@@ -215,7 +219,6 @@ fs.readFile(__dirname + '/config.json', 'utf8', function (err, data) {
                     app.post('/deleteCharacter', bodyParser.json(), function (req, res) {
                         if (verify_Login(req.headers['x-access-token'])) {
                             var query = req.body;
-
                             characters.findOneAndDelete({ 'id': query.id }, function (err, result) {
                                 if (err) {
                                     log(err, true, true);
