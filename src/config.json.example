@@ -6,5 +6,6 @@
     "HTTPSPort": "8443",
     "SSLCertificatePath": "./server.crt",
     "SSLPrivateKeyPath": "./server.key",
-    "ConvertMongoDBToLocal": false
+    "ConvertMongoDBToLocal": false,
+    "Password": "secret"
 }

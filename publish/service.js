@@ -1,12 +1,14 @@
 var express = require('express');
 var cors = require('cors');
-var { MongoClient } = require('mongodb');
+var MongoClient = require('mongodb').MongoClient;
 var bodyParser = require('body-parser');
 var http = require('http');
 var https = require('https');
 var fs = require('fs');
 var { JsonDB } = require('node-json-db');
 var { Config } = require('node-json-db/dist/lib/JsonDBConfig');
+var md5 = require('md5');
+var uuidv4 = require('uuid').v4;
 
 var logFile = __dirname + "/connector.log";
 function log(message, withDate = true, error = false, die = false) {
@@ -60,8 +62,10 @@ fs.readFile(__dirname + '/config.json', 'utf8', function (err, data) {
         var SSLCertificatePath = config.SSLCertificatePath || "";
         var SSLPrivateKeyPath = config.SSLPrivateKeyPath || "";
         var ConvertMongoDBToLocal = config.ConvertMongoDBToLocal || false;
+        var GlobalPassword = config.Password ? md5(config.Password) : "";
 
         var messageStore = [];
+        var tokenStore = [];
 
         var isWin = process.platform === "win32";
 
@@ -69,9 +73,50 @@ fs.readFile(__dirname + '/config.json', 'utf8', function (err, data) {
 
         app.use(function (req, res, next) {
             res.header("Access-Control-Allow-Origin", "*");
-            res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
+            res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, X-Access-Token");
             next();
         });
+
+        //Attempt to login with a password.
+        app.post('/login', bodyParser.json(), function (req, res) {
+            var query = req.body;
+            var token = Login(query.password);
+            res.send({ token: token });
+        })
+
+        function Login(password) {
+            if (GlobalPassword) {
+                if (password == GlobalPassword) {
+                    var time = new Date().getTime();
+                    var id = uuidv4();
+                    tokenStore.push({ id: id, timeStamp: time })
+                    return id;
+                } else {
+                    return false;
+                }
+            } else {
+                return "no-login-needed";
+            }
+        }
+
+        function verify_Login(token) {
+            if (GlobalPassword) {
+                return tokenStore.some(storeToken => storeToken.id == token);
+            } else {
+                return true;
+            }
+        }
+
+        async function cleanup_Logins() {
+            while (true) {
+                const timer = ms => new Promise(res => setTimeout(res, ms));
+                await timer(36000000);
+                var sevenDaysOld = new Date();
+                sevenDaysOld.setHours(sevenDaysOld.getHours() - 168);
+                tokenStore = tokenStore.filter(token => token.timeStamp >= sevenDaysOld.getTime());
+            }
+        }
+        cleanup_Logins();
 
         if (MongoDBConnectionURL && MongoDBDatabase) {
             MongoClient.connect(MongoDBConnectionURL, function (err, client) {
@@ -115,58 +160,75 @@ fs.readFile(__dirname + '/config.json', 'utf8', function (err, data) {
 
                     //Returns all savegames.
                     app.get('/listCharacters', cors(), function (req, res) {
-                        characters.find().toArray(function (err, result) {
-                            if (err) {
-                                log(err, true, true);
-                                res.status(500).send(err);
-                            } else {
-                                res.send(result)
-                            }
-                        })
+                        if (verify_Login(req.headers['x-access-token'])) {
+                            characters.find().toArray(function (err, result) {
+                                if (err) {
+                                    log(err, true, true);
+                                    res.status(500).send(err);
+                                } else {
+                                    res.send(result)
+                                }
+                            })
+                        } else {
+                            res.status(401).json({ message: 'Unauthorized Access' })
+                        }
                     })
 
                     //Returns a savegame by ID.
                     app.get('/loadCharacter/:query', cors(), function (req, res) {
-                        var query = req.params.query;
+                        if (verify_Login(req.headers['x-access-token'])) {
+                            var query = req.params.query;
 
-                        characters.findOne({ 'id': query }, function (err, result) {
-                            if (err) {
-                                log(err, true, true);
-                                res.status(500).send(err);
-                            } else {
-                                res.send(result)
-                            }
-                        })
+                            characters.findOne({ 'id': query }, function (err, result) {
+                                if (err) {
+                                    log(err, true, true);
+                                    res.status(500).send(err);
+                                } else {
+                                    res.send(result)
+                                }
+                            })
+                        } else {
+                            res.status(401).json({ message: 'Unauthorized Access' })
+                        }
                     })
 
                     //Inserts or overwrites a savegame identified by its MongoDB _id, which is set to its own id.
                     app.post('/saveCharacter', bodyParser.json(), function (req, res) {
-                        var query = req.body;
-                        query._id = query.id;
+                        if (verify_Login(req.headers['x-access-token'])) {
+                            var query = req.body;
+                            query._id = query.id;
 
-                        characters.findOneAndReplace({ _id: query._id }, query, { upsert: true, returnNewDocument: true }, function (err, result) {
-                            if (err) {
-                                log(err, true, true);
-                                res.status(500).send(err);
-                            } else {
-                                res.send(result)
-                            }
-                        })
+                            characters.findOneAndReplace({ _id: query._id }, query, { upsert: true, returnNewDocument: true }, function (err, result) {
+                                if (err) {
+                                    log(err, true, true);
+                                    res.status(500).send(err);
+                                } else {
+                                    res.send(result)
+                                }
+                            })
+                        } else {
+                            res.status(401).json({ message: 'Unauthorized Access' })
+                        }
                     })
 
                     //Deletes a savegame by ID.
                     app.post('/deleteCharacter', bodyParser.json(), function (req, res) {
-                        var query = req.body;
+                        if (verify_Login(req.headers['x-access-token'])) {
+                            var query = req.body;
 
-                        characters.findOneAndDelete({ 'id': query.id }, function (err, result) {
-                            if (err) {
-                                log(err, true, true);
-                                res.status(500).send(err);
-                            } else {
-                                res.send(result)
-                            }
-                        })
+                            characters.findOneAndDelete({ 'id': query.id }, function (err, result) {
+                                if (err) {
+                                    log(err, true, true);
+                                    res.status(500).send(err);
+                                } else {
+                                    res.send(result)
+                                }
+                            })
+                        } else {
+                            res.status(401).json({ message: 'Unauthorized Access' })
+                        }
                     })
+
                 }
             })
         } else if (MongoDBConnectionURL || MongoDBDatabase) {
@@ -187,84 +249,131 @@ fs.readFile(__dirname + '/config.json', 'utf8', function (err, data) {
 
             //Returns all savegames.
             app.get('/listCharacters', cors(), function (req, res) {
-                var characterResults = db.getData("/");
-                if (Object.keys(characterResults).length) {
-                    result = Object.keys(characterResults).map(key => characterResults[key]);
-                    res.send(result);
+                if (verify_Login(req.headers['x-access-token'])) {
+                    var characterResults = db.getData("/");
+                    if (Object.keys(characterResults).length) {
+                        result = Object.keys(characterResults).map(key => characterResults[key]);
+                        res.send(result);
+                    } else {
+                        res.send([]);
+                    }
                 } else {
-                    res.send([]);
+                    res.status(401).json({ message: 'Unauthorized Access' })
                 }
             })
 
             //Returns a savegame by ID.
             app.get('/loadCharacter/:query', cors(), function (req, res) {
-                var query = req.params.query;
-                var result = db.getData("/" + query);
-                res.send(result);
+                if (verify_Login(req.headers['x-access-token'])) {
+                    var query = req.params.query;
+                    var result = db.getData("/" + query);
+                    res.send(result);
+                } else {
+                    res.status(401).json({ message: 'Unauthorized Access' })
+                }
             })
 
             //Inserts or overwrites a savegame identified by its MongoDB _id, which is set to its own id.
             app.post('/saveCharacter', bodyParser.json(), function (req, res) {
-                var query = req.body;
-                query._id = query.id;
+                if (verify_Login(req.headers['x-access-token'])) {
+                    var query = req.body;
+                    query._id = query.id;
+                    try {
+                        var exists = db.getData("/" + query.id) ? true : false;
+                    } catch (error) {
+                        var exists = false;
+                    };
 
-                db.push("/" + query.id, query);
-                result = { result: { n: 1, ok: 1 } };
-                res.send(result);
+                    db.push("/" + query.id, query);
+
+                    if (exists) {
+                        result = { result: { n: 1, ok: 1 }, lastErrorObject: { updatedExisting: 1 } };
+                    } else {
+                        result = { result: { n: 1, ok: 1 } };
+                    }
+                    res.send(result);
+                } else {
+                    res.status(401).json({ message: 'Unauthorized Access' })
+                }
             })
 
             //Deletes a savegame by ID.
             app.post('/deleteCharacter', bodyParser.json(), function (req, res) {
-                var query = req.body;
+                if (verify_Login(req.headers['x-access-token'])) {
+                    var query = req.body;
 
-                db.delete("/" + query.id);
-                result = { result: { n: 1, ok: 1 } };
-                res.send(result);
+                    db.delete("/" + query.id);
+                    result = { result: { n: 1, ok: 1 } };
+                    res.send(result);
+                } else {
+                    res.status(401).json({ message: 'Unauthorized Access' })
+                }
             })
+
         }
 
         //Returns the current time in order to timestamp new messages on the frontend.
         app.get('/time', cors(), function (req, res) {
-            var time = new Date().getTime();
-            res.send({ time: time });
+            if (verify_Login(req.headers['x-access-token'])) {
+                var time = new Date().getTime();
+                res.send({ time: time });
+            } else {
+                res.status(401).json({ message: 'Unauthorized Access' })
+            }
         })
 
         //Returns all messages addressed to this recipient.
         app.get('/loadMessages/:query', cors(), function (req, res) {
-            var query = req.params.query;
-            var result = messageStore.filter(message => message.recipientId == query);
-            res.send(result)
+            if (verify_Login(req.headers['x-access-token'])) {
+                var query = req.params.query;
+                var result = messageStore.filter(message => message.recipientId == query);
+                res.send(result)
+            } else {
+                res.status(401).json({ message: 'Unauthorized Access' })
+            }
         })
 
         //Sends your messages to the database.
         app.post('/saveMessages', bodyParser.json(), function (req, res) {
-            var query = req.body;
-            messageStore.push(...query);
-            var result = { result: { ok: 1, n: query.length }, ops: query, insertedCount: query.length }
-            res.send(result);
+            if (verify_Login(req.headers['x-access-token'])) {
+                var query = req.body;
+                messageStore.push(...query);
+                var result = { result: { ok: 1, n: query.length }, ops: query, insertedCount: query.length }
+                res.send(result);
+            } else {
+                res.status(401).json({ message: 'Unauthorized Access' })
+            }
         })
 
         //Deletes one message by id.
         app.post('/deleteMessage', bodyParser.json(), function (req, res) {
-            var query = req.body;
-            var messageToDelete = messageStore.find(message => message.id == query.id);
-            if (messageToDelete) {
-                var result = { lastErrorObject: { n: 1 }, value: messageToDelete, ok: 1 }
+            if (verify_Login(req.headers['x-access-token'])) {
+                var query = req.body;
+                var messageToDelete = messageStore.find(message => message.id == query.id);
+                if (messageToDelete) {
+                    var result = { lastErrorObject: { n: 1 }, value: messageToDelete, ok: 1 }
+                } else {
+                    var result = { lastErrorObject: { n: 0 }, value: null, ok: 1 }
+                }
+                messageStore = messageStore.filter(message => message.id != query.id);
+                res.send(result);
             } else {
-                var result = { lastErrorObject: { n: 0 }, value: null, ok: 1 }
+                res.status(401).json({ message: 'Unauthorized Access' })
             }
-            messageStore = messageStore.filter(message => message.id != query.id);
-            res.send(result);
         })
 
         //Deletes all messages that are older than 10 minutes. The messages are timestamped with the above time to avoid issues arising from time differences.
         app.get('/cleanupMessages', cors(), function (req, res) {
-            var tenMinutesOld = new Date();
-            tenMinutesOld.setMinutes(tenMinutesOld.getMinutes() - 10);
-            var messagesToDelete = messageStore.filter(message => message.timeStamp < tenMinutesOld.getTime());
-            var result = { result: { n: messagesToDelete.length, ok: 1 }, deletedCount: messagesToDelete.length };
-            messageStore = messageStore.filter(message => message.timeStamp >= tenMinutesOld.getTime());
-            res.send(result);
+            if (verify_Login(req.headers['x-access-token'])) {
+                var tenMinutesOld = new Date();
+                tenMinutesOld.setMinutes(tenMinutesOld.getMinutes() - 10);
+                var messagesToDelete = messageStore.filter(message => message.timeStamp < tenMinutesOld.getTime());
+                var result = { result: { n: messagesToDelete.length, ok: 1 }, deletedCount: messagesToDelete.length };
+                messageStore = messageStore.filter(message => message.timeStamp >= tenMinutesOld.getTime());
+                res.send(result);
+            } else {
+                res.status(401).json({ message: 'Unauthorized Access' })
+            }
         })
 
         if (!(MongoDBConnectionURL && MongoDBDatabase && ConvertMongoDBToLocal)) {
@@ -273,7 +382,7 @@ fs.readFile(__dirname + '/config.json', 'utf8', function (err, data) {
                 try {
                     await new Promise((resolve, reject) => {
                         httpServer.listen(HTTPPort, () => {
-                            log('HTTP connector is listening on port ' + HTTPPort);
+                            log('HTTP service is listening on port ' + HTTPPort);
                             resolve();
                         });
                         httpServer.once('error', (err) => {
@@ -282,7 +391,7 @@ fs.readFile(__dirname + '/config.json', 'utf8', function (err, data) {
                     });
                     return;
                 } catch (err) {
-                    log("HTTP connector could not be started: ");
+                    log("HTTP service could not be started: ");
                     log(err, true, true, true);
                 }
             }
@@ -310,7 +419,7 @@ fs.readFile(__dirname + '/config.json', 'utf8', function (err, data) {
                         try {
                             await new Promise((resolve, reject) => {
                                 httpsServer.listen(HTTPSPort, () => {
-                                    log('HTTPS connector is listening on port ' + HTTPSPort);
+                                    log('HTTPS service is listening on port ' + HTTPSPort);
                                     resolve();
                                 });
                                 httpsServer.once('error', (err) => {
@@ -319,13 +428,13 @@ fs.readFile(__dirname + '/config.json', 'utf8', function (err, data) {
                             });
                             return;
                         } catch (err) {
-                            log("HTTPS connector could not be started: ");
+                            log("HTTPS service could not be started: ");
                             log(err, true, true, true);
                         }
                     }
                     startHTTPS()
                 } else {
-                    log('HTTPS connector was not started.')
+                    log('HTTPS service was not started.')
                 }
             } else if (SSLCertificatePath || SSLPrivateKeyPath) {
                 log('SSL information missing from config.json: ')
@@ -335,7 +444,7 @@ fs.readFile(__dirname + '/config.json', 'utf8', function (err, data) {
                 if (!SSLPrivateKeyPath) {
                     log(' SSLPrivateKeyPath');
                 }
-                log('HTTPS connector was not started.')
+                log('HTTPS service was not started.')
             }
         }
     }

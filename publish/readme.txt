@@ -21,6 +21,10 @@ SSLPrivateKeyPath
 (optional)
 If you want to use HTTPS, your SSL certificate needs a private key. This is the path to the key. Password-protected private keys are not supported.
 
+Password
+(optional)
+If you set a password, PECS will require players to enter it before they can use the tool and access your data.
+
 MongoDBConnectionURL
 This is the connection URL for your MongoDB database server. Both MongoDB Atlas and MongoDB Compass can show you the exact url to use for your server. If the server requires an authenticated user for the connection, you must enter the user and password here. MongoDB Atlas always requires authenticated users.
 

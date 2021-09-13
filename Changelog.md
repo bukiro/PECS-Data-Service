@@ -18,6 +18,10 @@ This log tracks only major changes.
 
 ## 1.0.3
 
-- Messages are now handled completely in the connector and don't use the database connection anymore.
-- The messages parameter is not used anymore. You can delete your MongoDB messages collection. All messages will disappear when you stop the connector.
+- Messages are now handled completely in the service and don't use the database connection anymore.
+- The messages parameter is not used anymore. You can delete your MongoDB messages collection. All messages will disappear when you stop the service.
 - The app now uses a local data file to store characters. The MongoDB connection remains an optional alternative.
+
+## 1.0.4
+
+- The service can now optionally protect PECS with a password.
