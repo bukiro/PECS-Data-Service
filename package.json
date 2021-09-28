@@ -1,6 +1,6 @@
 {
   "name": "@bukiro/pecs-data-service",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "Character and message service for PECS.",
   "main": "index.js",
   "scripts": {

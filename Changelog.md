@@ -25,3 +25,7 @@ This log tracks only major changes.
 ## 1.0.4
 
 - The service can now optionally protect PECS with a password.
+
+## 1.0.5
+
+- The path for the local data file has been changed, and the file will automatically be moved.
