@@ -29,3 +29,7 @@ This log tracks only major changes.
 ## 1.0.5
 
 - The path for the local data file has been changed, and the file will automatically be moved.
+
+## 1.0.6
+
+- The name of the log file has changed (from connector.log to service.log), and the file will automatically be renamed.

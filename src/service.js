@@ -10,16 +10,33 @@ var { Config } = require('node-json-db/dist/lib/JsonDBConfig');
 var md5 = require('md5');
 var uuidv4 = require('uuid').v4;
 
-var logFile = __dirname + "/connector.log";
+var logFile = __dirname + "/service.log";
+
+//Rename old logfile if needed.
+var oldlogFile = __dirname + "/connector.log";
+if (fs.existsSync(oldlogFile)) {
+    try {
+        fs.renameSync(oldlogFile, logFile);
+        log('==================================================', false)
+        log("The logfile was renamed. The new logfile name is 'service.log'.");
+    }
+    catch (err)
+    {
+        log('==================================================', false)
+        log("The logfile should be renamed, but could not:");
+        log(err, true, true, false);
+    }
+}
+
 function log(message, withDate = true, error = false, die = false) {
     date = new Date();
-    var day = ("0" + date.getDate()).slice(-2);
-    var month = ("0" + (date.getMonth() + 1)).slice(-2);
-    var year = date.getFullYear();
-    var hours = ("0" + date.getHours()).slice(-2);
-    var minutes = ("0" + date.getMinutes()).slice(-2);
-    var seconds = ("0" + date.getSeconds()).slice(-2);
-    var dateStr = year + "-" + month + "-" + day + " " + hours + ":" + minutes + ":" + seconds;
+    const day = ("0" + date.getDate()).slice(-2);
+    const month = ("0" + (date.getMonth() + 1)).slice(-2);
+    const year = date.getFullYear();
+    const hours = ("0" + date.getHours()).slice(-2);
+    const minutes = ("0" + date.getMinutes()).slice(-2);
+    const seconds = ("0" + date.getSeconds()).slice(-2);
+    const dateStr = year + "-" + month + "-" + day + " " + hours + ":" + minutes + ":" + seconds;
     var dateMessage = "\n" + message;
     if (withDate) {
         dateMessage = "\n" + dateStr + ":: " + message;
@@ -52,24 +69,24 @@ fs.readFile(__dirname + '/config.json', 'utf8', function (err, data) {
         log('config.json was not found or could not be opened: ')
         log(err, true, true, true);
     } else {
-        var config = JSON.parse(data);
+        const config = JSON.parse(data);
 
-        var HTTPPort = config.HTTPPort || 8080;
-        var HTTPSPort = config.HTTPSPort || 8443;
-        var MongoDBConnectionURL = config.MongoDBConnectionURL || "";
-        var MongoDBDatabase = config.MongoDBDatabase || "";
-        var MongoDBCharacterCollection = config.MongoDBCharacterCollection || "characters";
-        var SSLCertificatePath = config.SSLCertificatePath || "";
-        var SSLPrivateKeyPath = config.SSLPrivateKeyPath || "";
-        var ConvertMongoDBToLocal = config.ConvertMongoDBToLocal || false;
-        var GlobalPassword = config.Password ? md5(config.Password) : "";
+        const HTTPPort = config.HTTPPort || 8080;
+        const HTTPSPort = config.HTTPSPort || 8443;
+        const MongoDBConnectionURL = config.MongoDBConnectionURL || "";
+        const MongoDBDatabase = config.MongoDBDatabase || "";
+        const MongoDBCharacterCollection = config.MongoDBCharacterCollection || "characters";
+        const SSLCertificatePath = config.SSLCertificatePath || "";
+        const SSLPrivateKeyPath = config.SSLPrivateKeyPath || "";
+        const ConvertMongoDBToLocal = config.ConvertMongoDBToLocal || false;
+        const GlobalPassword = config.Password ? md5(config.Password) : "";
 
         var messageStore = [];
         var tokenStore = [];
 
-        var isWin = process.platform === "win32";
-
-        var app = express()
+        const isWin = process.platform === "win32";        
+        
+        const app = express()
 
         app.use(function (req, res, next) {
             res.header("Access-Control-Allow-Origin", "*");
@@ -79,16 +96,16 @@ fs.readFile(__dirname + '/config.json', 'utf8', function (err, data) {
 
         //Attempt to login with a password.
         app.post('/login', bodyParser.json(), function (req, res) {
-            var query = req.body;
-            var token = Login(query.password);
+            const query = req.body;
+            const token = Login(query.password);
             res.send({ token: token });
         })
 
         function Login(password) {
             if (GlobalPassword) {
                 if (password == GlobalPassword) {
-                    var time = new Date().getTime();
-                    var id = uuidv4();
+                    const time = new Date().getTime();
+                    const id = uuidv4();
                     tokenStore.push({ id: id, timeStamp: time })
                     return id;
                 } else {
@@ -111,7 +128,7 @@ fs.readFile(__dirname + '/config.json', 'utf8', function (err, data) {
             while (true) {
                 const timer = ms => new Promise(res => setTimeout(res, ms));
                 await timer(36000000);
-                var sevenDaysOld = new Date();
+                const sevenDaysOld = new Date();
                 sevenDaysOld.setHours(sevenDaysOld.getHours() - 168);
                 tokenStore = tokenStore.filter(token => token.timeStamp >= sevenDaysOld.getTime());
             }
@@ -125,7 +142,7 @@ fs.readFile(__dirname + '/config.json', 'utf8', function (err, data) {
                     log(err, true, true, true);
                 } else {
                     var db = client.db(MongoDBDatabase)
-                    var characters = db.collection(MongoDBCharacterCollection);
+                    const characters = db.collection(MongoDBCharacterCollection);
 
                     db.listCollections({ name: MongoDBCharacterCollection }).next(function (err, collinfo) {
                         if (!collinfo) {
@@ -181,7 +198,7 @@ fs.readFile(__dirname + '/config.json', 'utf8', function (err, data) {
                     //Returns a savegame by ID.
                     app.get('/loadCharacter/:query', cors(), function (req, res) {
                         if (verify_Login(req.headers['x-access-token'])) {
-                            var query = req.params.query;
+                            const query = req.params.query;
 
                             characters.findOne({ 'id': query }, function (err, result) {
                                 if (err) {
@@ -218,7 +235,7 @@ fs.readFile(__dirname + '/config.json', 'utf8', function (err, data) {
                     //Deletes a savegame by ID.
                     app.post('/deleteCharacter', bodyParser.json(), function (req, res) {
                         if (verify_Login(req.headers['x-access-token'])) {
-                            var query = req.body;
+                            const query = req.body;
                             characters.findOneAndDelete({ 'id': query.id }, function (err, result) {
                                 if (err) {
                                     log(err, true, true);
@@ -248,9 +265,9 @@ fs.readFile(__dirname + '/config.json', 'utf8', function (err, data) {
             //They were stored in APPDATA\kironet\pecs or HOME/.kironet_pecs before, so have to be moved with some unfortunate file movements.
             if (isWin) {
                 try {
-                    var oldDir = process.env.APPDATA + "/kironet/pecs";
-                    var newDir = process.env.APPDATA + "/bukiro/pecs";
-                    var file = "/characters.json";
+                    const oldDir = process.env.APPDATA + "/kironet/pecs";
+                    const newDir = process.env.APPDATA + "/bukiro/pecs";
+                    const file = "/characters.json";
                     if (fs.existsSync(oldDir + file) && !fs.existsSync(newDir + file)) {
                         log("Characters were found under %appdata%\\kironet and will be moved to %appdata%\\bukiro.");
                         //Create bukiro and bukiro/pecs if they don't exist, then move kironet/pecs/characters.json to bukiro/pecs/.
@@ -291,9 +308,9 @@ fs.readFile(__dirname + '/config.json', 'utf8', function (err, data) {
                 }
             } else {
                 try {
-                    var oldDir = process.env.HOME + "/.kironet_pecs";
-                    var newDir = process.env.HOME + "/.bukiro/pecs";
-                    var file = "/characters.json";
+                    const oldDir = process.env.HOME + "/.kironet_pecs";
+                    const newDir = process.env.HOME + "/.bukiro/pecs";
+                    const file = "/characters.json";
                     if (fs.existsSync(oldDir + file) && !fs.existsSync(newDir + file)) {
                         log("Characters were found under ~/.kironet_pecs and will be moved to ~/.bukiro/pecs.");
                         //Create .bukiro and .bukiro/pecs if they don't exist, then move .kironet_pecs/characters.json to .bukiro/pecs/.
@@ -323,7 +340,7 @@ fs.readFile(__dirname + '/config.json', 'utf8', function (err, data) {
             //Returns all savegames.
             app.get('/listCharacters', cors(), function (req, res) {
                 if (verify_Login(req.headers['x-access-token'])) {
-                    var characterResults = db.getData("/");
+                    const characterResults = db.getData("/");
                     if (Object.keys(characterResults).length) {
                         result = Object.keys(characterResults).map(key => characterResults[key]);
                         res.send(result);
@@ -338,8 +355,8 @@ fs.readFile(__dirname + '/config.json', 'utf8', function (err, data) {
             //Returns a savegame by ID.
             app.get('/loadCharacter/:query', cors(), function (req, res) {
                 if (verify_Login(req.headers['x-access-token'])) {
-                    var query = req.params.query;
-                    var result = db.getData("/" + query);
+                    const query = req.params.query;
+                    const result = db.getData("/" + query);
                     res.send(result);
                 } else {
                     res.status(401).json({ message: 'Unauthorized Access' })
@@ -373,7 +390,7 @@ fs.readFile(__dirname + '/config.json', 'utf8', function (err, data) {
             //Deletes a savegame by ID.
             app.post('/deleteCharacter', bodyParser.json(), function (req, res) {
                 if (verify_Login(req.headers['x-access-token'])) {
-                    var query = req.body;
+                    const query = req.body;
 
                     db.delete("/" + query.id);
                     result = { result: { n: 1, ok: 1 } };
@@ -388,7 +405,7 @@ fs.readFile(__dirname + '/config.json', 'utf8', function (err, data) {
         //Returns the current time in order to timestamp new messages on the frontend.
         app.get('/time', cors(), function (req, res) {
             if (verify_Login(req.headers['x-access-token'])) {
-                var time = new Date().getTime();
+                const time = new Date().getTime();
                 res.send({ time: time });
             } else {
                 res.status(401).json({ message: 'Unauthorized Access' })
@@ -398,8 +415,8 @@ fs.readFile(__dirname + '/config.json', 'utf8', function (err, data) {
         //Returns all messages addressed to this recipient.
         app.get('/loadMessages/:query', cors(), function (req, res) {
             if (verify_Login(req.headers['x-access-token'])) {
-                var query = req.params.query;
-                var result = messageStore.filter(message => message.recipientId == query);
+                const query = req.params.query;
+                const result = messageStore.filter(message => message.recipientId == query);
                 res.send(result)
             } else {
                 res.status(401).json({ message: 'Unauthorized Access' })
@@ -409,9 +426,9 @@ fs.readFile(__dirname + '/config.json', 'utf8', function (err, data) {
         //Sends your messages to the database.
         app.post('/saveMessages', bodyParser.json(), function (req, res) {
             if (verify_Login(req.headers['x-access-token'])) {
-                var query = req.body;
+                const query = req.body;
                 messageStore.push(...query);
-                var result = { result: { ok: 1, n: query.length }, ops: query, insertedCount: query.length }
+                const result = { result: { ok: 1, n: query.length }, ops: query, insertedCount: query.length }
                 res.send(result);
             } else {
                 res.status(401).json({ message: 'Unauthorized Access' })
@@ -421,8 +438,8 @@ fs.readFile(__dirname + '/config.json', 'utf8', function (err, data) {
         //Deletes one message by id.
         app.post('/deleteMessage', bodyParser.json(), function (req, res) {
             if (verify_Login(req.headers['x-access-token'])) {
-                var query = req.body;
-                var messageToDelete = messageStore.find(message => message.id == query.id);
+                const query = req.body;
+                const messageToDelete = messageStore.find(message => message.id == query.id);
                 if (messageToDelete) {
                     var result = { lastErrorObject: { n: 1 }, value: messageToDelete, ok: 1 }
                 } else {
@@ -440,8 +457,8 @@ fs.readFile(__dirname + '/config.json', 'utf8', function (err, data) {
             if (verify_Login(req.headers['x-access-token'])) {
                 var tenMinutesOld = new Date();
                 tenMinutesOld.setMinutes(tenMinutesOld.getMinutes() - 10);
-                var messagesToDelete = messageStore.filter(message => message.timeStamp < tenMinutesOld.getTime());
-                var result = { result: { n: messagesToDelete.length, ok: 1 }, deletedCount: messagesToDelete.length };
+                const messagesToDelete = messageStore.filter(message => message.timeStamp < tenMinutesOld.getTime());
+                const result = { result: { n: messagesToDelete.length, ok: 1 }, deletedCount: messagesToDelete.length };
                 messageStore = messageStore.filter(message => message.timeStamp >= tenMinutesOld.getTime());
                 res.send(result);
             } else {
@@ -451,7 +468,7 @@ fs.readFile(__dirname + '/config.json', 'utf8', function (err, data) {
 
         if (!(MongoDBConnectionURL && MongoDBDatabase && ConvertMongoDBToLocal)) {
             async function startHTTP() {
-                var httpServer = http.createServer(app);
+                const httpServer = http.createServer(app);
                 try {
                     await new Promise((resolve, reject) => {
                         httpServer.listen(HTTPPort, () => {
@@ -484,10 +501,10 @@ fs.readFile(__dirname + '/config.json', 'utf8', function (err, data) {
                     privateKey = "";
                 }
                 if (certificate && privateKey) {
-                    var credentials = { key: privateKey, cert: certificate };
+                    const credentials = { key: privateKey, cert: certificate };
 
                     async function startHTTPS() {
-                        var httpsServer = https.createServer(credentials, app);
+                        const httpsServer = https.createServer(credentials, app);
 
                         try {
                             await new Promise((resolve, reject) => {
