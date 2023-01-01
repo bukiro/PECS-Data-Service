@@ -1,19 +1,19 @@
-var express = require('express');
-var cors = require('cors');
-var MongoClient = require('mongodb').MongoClient;
-var bodyParser = require('body-parser');
-var http = require('http');
-var https = require('https');
-var fs = require('fs');
-var { JsonDB } = require('node-json-db');
-var { Config } = require('node-json-db/dist/lib/JsonDBConfig');
-var md5 = require('md5');
-var uuidv4 = require('uuid').v4;
+const express = require('express');
+const cors = require('cors');
+const { MongoClient } = require('mongodb');
+const bodyParser = require('body-parser');
+const http = require('http');
+const https = require('https');
+const fs = require('fs');
+const { JsonDB } = require('node-json-db');
+const { Config } = require('node-json-db/dist/lib/JsonDBConfig');
+const md5 = require('md5');
+const uuidv4 = require('uuid').v4;
 
-var logFile = __dirname + "/service.log";
+const logFile = __dirname + "/service.log";
 
 //Rename old logfile if needed.
-var oldlogFile = __dirname + "/connector.log";
+const oldlogFile = __dirname + "/connector.log";
 if (fs.existsSync(oldlogFile)) {
     try {
         fs.renameSync(oldlogFile, logFile);
@@ -66,7 +66,7 @@ log('==================================================', false)
 
 fs.readFile(__dirname + '/config.json', 'utf8', function (err, data) {
     if (err) {
-        log('config.json was not found or could not be opened: ')
+        log('config.json was not found or could not be opened: ');
         log(err, true, true, true);
     } else {
         const config = JSON.parse(data);
@@ -84,8 +84,8 @@ fs.readFile(__dirname + '/config.json', 'utf8', function (err, data) {
         var messageStore = [];
         var tokenStore = [];
 
-        const isWin = process.platform === "win32";        
-        
+        const isWin = process.platform === "win32";
+
         const app = express()
 
         app.use(function (req, res, next) {
@@ -136,12 +136,12 @@ fs.readFile(__dirname + '/config.json', 'utf8', function (err, data) {
         cleanup_Logins();
 
         if (MongoDBConnectionURL && MongoDBDatabase) {
-            MongoClient.connect(MongoDBConnectionURL, function (err, client) {
+            MongoClient.connect(MongoDBConnectionURL, async function (err, client) {
                 if (err) {
                     log("Failed to connect to the database! The connector will not run: ");
                     log(err, true, true, true);
                 } else {
-                    var db = client.db(MongoDBDatabase)
+                    const db = client.db(MongoDBDatabase);
                     const characters = db.collection(MongoDBCharacterCollection);
 
                     db.listCollections({ name: MongoDBCharacterCollection }).next(function (err, collinfo) {
@@ -166,15 +166,28 @@ fs.readFile(__dirname + '/config.json', 'utf8', function (err, data) {
                         } else {
                             var localDB = new JsonDB(new Config(process.env.HOME + "/.kironet_pecs/characters", true, true, '/'));
                         }
-                        characters.find().toArray(function (err, result) {
+                        characters.find().toArray(async function (err, result) {
                             if (err) {
                                 log("Unable to load characters from MongoDB: ")
                                 log(err, true, true);
                             } else {
-                                result.forEach(char => {
-                                    localDB.push("/" + char.id, char);
+                                await localDB.resetData();
+
+                                var errors = 0;
+
+                                result.forEach(char => async function() {
+                                    try {
+                                        await localDB.push("/" + char.id, char);
+                                    } catch (error) {
+                                        log(err, true, true);
+                                        errors++;
+                                    }
                                 })
-                                log("All characters have been converted. MongoDB is still the connected database. Please remove the database parameters from the config file now and restart the application.", true, false, true);
+                                if (errors.length > 0) {
+                                    log("Not all characters could be converted. Please fix all problems and try again.", true, true, true);
+                                } else {
+                                    log("All characters have been converted. MongoDB is still the connected database. Please remove the database parameters from the config file now and restart the application.", true, false, true);
+                                }
                             }
                         })
                     }
@@ -236,6 +249,7 @@ fs.readFile(__dirname + '/config.json', 'utf8', function (err, data) {
                     app.post('/deleteCharacter', bodyParser.json(), function (req, res) {
                         if (verify_Login(req.headers['x-access-token'])) {
                             const query = req.body;
+
                             characters.findOneAndDelete({ 'id': query.id }, function (err, result) {
                                 if (err) {
                                     log(err, true, true);
@@ -278,13 +292,13 @@ fs.readFile(__dirname + '/config.json', 'utf8', function (err, data) {
                             fs.mkdirSync(newDir);
                         }
                         fs.renameSync(oldDir + file, newDir + file);
-                        //Remove kironet/pecs if empty.
+                        //Remove kironet/pecs, then kironet if empty.
                         fs.readdir(oldDir, function (err, data) {
-                            if (data.length == 0) {
+                            if (!data.length) {
                                 fs.rmdir(oldDir, () => {
                                     //Remove kironet if empty.
                                     fs.readdir(process.env.APPDATA + "/kironet", function (err, data) {
-                                        if (data.length == 0) {
+                                        if (!data.length) {
                                             fs.rmdir(process.env.APPDATA + "/kironet", () => {
                                             });
                                         }
@@ -294,7 +308,7 @@ fs.readFile(__dirname + '/config.json', 'utf8', function (err, data) {
                         })
                         //Remove kironet if empty.
                         fs.readdir(process.env.APPDATA + "/kironet", function (err, data) {
-                            if (data.length == 0) {
+                            if (!data.length) {
                                 fs.rmdir(process.env.APPDATA + "/kironet", () => {
                                 });
                             }
@@ -323,7 +337,7 @@ fs.readFile(__dirname + '/config.json', 'utf8', function (err, data) {
                         fs.renameSync(oldDir + file, newDir + file);
                         //Remove .kironet_pecs if empty.
                         fs.readdir(oldDir, function (err, data) {
-                            if (data.length == 0) {
+                            if (!data.length) {
                                 fs.rmdir(oldDir, () => {
                                 });
                             }
@@ -338,14 +352,19 @@ fs.readFile(__dirname + '/config.json', 'utf8', function (err, data) {
             }
 
             //Returns all savegames.
-            app.get('/listCharacters', cors(), function (req, res) {
+            app.get('/listCharacters', cors(), async function (req, res) {
                 if (verify_Login(req.headers['x-access-token'])) {
-                    const characterResults = db.getData("/");
-                    if (Object.keys(characterResults).length) {
-                        result = Object.keys(characterResults).map(key => characterResults[key]);
-                        res.send(result);
-                    } else {
-                        res.send([]);
+                    try {
+                        var characterResults = await db.getData("/");
+
+                        if (Object.keys(characterResults).length) {
+                            result = Object.keys(characterResults).map(key => characterResults[key]);
+                            res.send(result);
+                        } else {
+                            res.send([]);
+                        }
+                    } catch (error) {
+                        res.status(500).json({ error: error });
                     }
                 } else {
                     res.status(401).json({ message: 'Unauthorized Access' })
@@ -353,46 +372,56 @@ fs.readFile(__dirname + '/config.json', 'utf8', function (err, data) {
             })
 
             //Returns a savegame by ID.
-            app.get('/loadCharacter/:query', cors(), function (req, res) {
+            app.get('/loadCharacter/:query', cors(), async function (req, res) {
                 if (verify_Login(req.headers['x-access-token'])) {
-                    const query = req.params.query;
-                    const result = db.getData("/" + query);
-                    res.send(result);
+                    var query = req.params.query;
+
+                    try {
+                        var result = await db.getData("/" + query);
+                        res.send(result);
+                    } catch (error) {
+                        res.status(500).json({ error: error });
+                    }
                 } else {
                     res.status(401).json({ message: 'Unauthorized Access' })
                 }
             })
 
             //Inserts or overwrites a savegame identified by its MongoDB _id, which is set to its own id.
-            app.post('/saveCharacter', bodyParser.json(), function (req, res) {
+            app.post('/saveCharacter', bodyParser.json(), async function (req, res) {
                 if (verify_Login(req.headers['x-access-token'])) {
-                    var query = req.body;
+                    const query = req.body;
                     query._id = query.id;
                     try {
-                        var exists = db.getData("/" + query.id) ? true : false;
+                        var exists = await db.getData("/" + query.id) ? true : false;
                     } catch (error) {
                         var exists = false;
                     };
 
-                    db.push("/" + query.id, query);
+                    try {
+                        await db.push("/" + query.id, query);
 
-                    if (exists) {
-                        result = { result: { n: 1, ok: 1 }, lastErrorObject: { updatedExisting: 1 } };
-                    } else {
-                        result = { result: { n: 1, ok: 1 } };
+                        if (exists) {
+                            var result = { result: { n: 1, ok: 1 }, lastErrorObject: { updatedExisting: 1 } };
+                        } else {
+                            var result = { result: { n: 1, ok: 1 } };
+                        }
+
+                        res.send(result);
+                    } catch (error) {
+                        res.status(500).json({ error: error });
                     }
-                    res.send(result);
                 } else {
-                    res.status(401).json({ message: 'Unauthorized Access' })
+                    res.status(401).json({ message: 'Unauthorized Access' });
                 }
             })
 
             //Deletes a savegame by ID.
-            app.post('/deleteCharacter', bodyParser.json(), function (req, res) {
+            app.post('/deleteCharacter', bodyParser.json(), async function (req, res) {
                 if (verify_Login(req.headers['x-access-token'])) {
                     const query = req.body;
 
-                    db.delete("/" + query.id);
+                    await db.delete("/" + query.id);
                     result = { result: { n: 1, ok: 1 } };
                     res.send(result);
                 } else {
