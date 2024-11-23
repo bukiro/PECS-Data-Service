@@ -341,8 +341,8 @@ fs.readFile(__dirname + '/config.json', 'utf8', function (err, data) {
             app.get('/listCharacters', cors(), function (req, res) {
                 if (verify_Login(req.headers['x-access-token'])) {
                     const characterResults = db.getData("/");
-                    if (Object.keys(characterResults).length) {
-                        result = Object.keys(characterResults).map(key => characterResults[key]);
+                    if (characterResults) {
+                        result = Object.values(characterResults);
                         res.send(result);
                     } else {
                         res.send([]);
